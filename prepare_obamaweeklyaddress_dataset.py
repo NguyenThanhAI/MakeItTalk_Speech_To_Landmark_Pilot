@@ -148,7 +148,7 @@ if __name__ == '__main__':
     G = Generator(32, 256, 512, 32).eval().to(device)
 
     if torch.cuda.is_available():
-        g_checkpoint = torch.load(args.auto_vc_checkpoint)
+        g_checkpoint = torch.load(args.auto_vc_checkpoint, map_location=torch.device(device))
     else:
         g_checkpoint = torch.load(args.auto_vc_checkpoint, map_location=torch.device("cpu"))
 
@@ -187,7 +187,7 @@ if __name__ == '__main__':
                                                       width=args.target_width, height=args.target_height)
             wav, duration = read_wav_file(wav_path=audio)
 
-            spectro = preprocess_wav(wav)
+            spectro = preprocess(wav)
             pad_len = math.ceil(spectro.shape[0] / 32) * 32 - spectro.shape[0]
             spectro = np.pad(spectro, ((0, pad_len), (0, 0)), mode="constant")
 

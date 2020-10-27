@@ -148,7 +148,7 @@ if __name__ == '__main__':
     G = Generator(32, 256, 512, 32).eval().to(device)
 
     if torch.cuda.is_available():
-        g_checkpoint = torch.load(args.auto_vc_checkpoint)
+        g_checkpoint = torch.load(args.auto_vc_checkpoint, map_location=torch.device(device))
     else:
         g_checkpoint = torch.load(args.auto_vc_checkpoint, map_location=torch.device("cpu"))
 
