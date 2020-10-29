@@ -186,11 +186,17 @@ if __name__ == '__main__':
                 spectro_pt = torch.FloatTensor(spectro).unsqueeze(0)
                 speaker_embedding_pt = torch.FloatTensor(speaker_embedding).unsqueeze(0)
 
+                if torch.cuda.is_available():
+                    spectro_pt = spectro_pt.to(device)
+                    speaker_embedding_pt = speaker_embedding_pt.to(device)
+
                 content_embedding_pt = G(spectro_pt, speaker_embedding_pt, None)
-                print(content_embedding_pt.shape)
-                content_embedding = content_embedding_pt.detach().numpy()
+                if torch.cuda.is_available():
+                    content_embedding = content_embedding_pt.cpu().detach().numpy()
+                else:
+                    content_embedding = content_embedding_pt.detach().numpy()
                 content_embedding = content_embedding[0, :-pad_len, :]
-                print(content_embedding.shape)
+
                 content_time_step = np.linspace(0, stop=duration, num=content_embedding.shape[0], endpoint=True)
                 landmarks_time_step = np.linspace(0, stop=duration, num=landmarks.shape[0], endpoint=True)
 

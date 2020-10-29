@@ -177,7 +177,7 @@ if __name__ == '__main__':
     else:
         index_file = 0
 
-    audio_list = list(audios_to_videos.keys())
+    audio_list = sorted(list(audios_to_videos.keys()))
     speaker_embedding = compute_speakers_embedding(files=audio_list, encoder=encoder)
     print("index file: {}".format(index_file))
     for audio in tqdm(audio_list[index_file:]):
