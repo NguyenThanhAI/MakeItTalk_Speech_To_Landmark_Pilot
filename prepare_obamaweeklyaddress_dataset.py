@@ -194,6 +194,10 @@ if __name__ == '__main__':
             spectro_pt = torch.FloatTensor(spectro).unsqueeze(0)
             speaker_embedding_pt = torch.FloatTensor(speaker_embedding).unsqueeze(0)
 
+            if torch.cuda.is_available():
+                spectro_pt = spectro_pt.to(device)
+                speaker_embedding_pt = speaker_embedding_pt.to(device)
+
             content_embedding_pt = G(spectro_pt, speaker_embedding_pt, None)
             content_embedding = content_embedding_pt.detach().numpy()
             content_embedding = content_embedding[0, :-pad_len, :]
