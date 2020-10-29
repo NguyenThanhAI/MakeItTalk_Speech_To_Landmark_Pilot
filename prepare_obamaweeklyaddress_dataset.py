@@ -199,7 +199,10 @@ if __name__ == '__main__':
                 speaker_embedding_pt = speaker_embedding_pt.to(device)
 
             content_embedding_pt = G(spectro_pt, speaker_embedding_pt, None)
-            content_embedding = content_embedding_pt.detach().numpy()
+            if torch.cuda.is_available():
+                content_embedding = content_embedding_pt.cpu().detach().numpy()
+            else:
+                content_embedding = content_embedding_pt.detach().numpy()
             content_embedding = content_embedding[0, :-pad_len, :]
 
             content_time_step = np.linspace(0, stop=duration, num=content_embedding.shape[0], endpoint=True)
