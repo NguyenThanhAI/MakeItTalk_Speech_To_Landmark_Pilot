@@ -5,7 +5,7 @@ import time
 import numpy as np
 
 import tensorflow as tf
-from read_random_tfrecord import get_batch
+from read_dataset_utils import get_batch
 from ops import construct_padding_mask_from_sequence_mask, construct_lookup_table, \
     speech_content_animation, speaker_aware_animation, discriminator
 from losses import l2_loss, graph_laplacian, discriminator_loss, adversarial_loss
@@ -13,7 +13,7 @@ from losses import l2_loss, graph_laplacian, discriminator_loss, adversarial_los
 
 class SpeechToLandmarkConfig(object):
     def __init__(self, batch_size=32, hidden_size=256, d_model=32, max_length=1000, num_lstms=3,
-                 tau=18, tau_comma=256, num_layers=2, num_heads=8, d_ff=2048, dataset_path=None,
+                 tau=18, tau_comma=256, num_layers=2, num_heads=8, d_ff=2048, dataset_dir=None,
                  speech_content_checkpoint=None, speaker_aware_checkpoint=None, discriminator_checkpoint=None,
                  speech_content_model_dir=None, speaker_aware_model_dir=None, discriminator_model_dir=None,
                  num_epochs=100, dropout_rate=None, is_2d=True, summary_dir="summary",
@@ -31,7 +31,7 @@ class SpeechToLandmarkConfig(object):
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.d_ff = d_ff
-        self.dataset_path = dataset_path
+        self.dataset_dir = dataset_dir
         self.speech_content_checkpoint = speech_content_checkpoint
         self.speaker_aware_checkpoint = speaker_aware_checkpoint
         self.discriminator_checkpoint = discriminator_checkpoint
@@ -64,7 +64,7 @@ class SpeechToLandmark(object):
         self.config = config
         tf.reset_default_graph()
 
-        self.length, self.static_landmark, self.speaker_embedding, self.content_embedding, self.landmark_label, self.epoch_now = get_batch(tfrecord_path=self.config.dataset_path,
+        self.length, self.static_landmark, self.speaker_embedding, self.content_embedding, self.landmark_label, self.epoch_now = get_batch(tfrecord_path=self.config.dataset_dir,
                                                                                                                                            batch_size=self.config.batch_size,
                                                                                                                                            num_epochs=self.config.num_epochs)
 
@@ -82,7 +82,8 @@ class SpeechToLandmark(object):
                                                                        tau=self.config.tau,
                                                                        dropout_rate=self.config.dropout_rate,
                                                                        is_training=self.config.is_training,
-                                                                       scope="speech_content_animation")
+                                                                       scope="speech_content_animation",
+                                                                       is_2d=self.config.is_2d)
 
         if self.config.use_speaker_aware:
 
@@ -100,7 +101,8 @@ class SpeechToLandmark(object):
                                                                           num_heads=self.config.num_heads,
                                                                           d_ff=self.config.d_ff,
                                                                           scope="speaker_aware_animation",
-                                                                          is_training=self.config.is_training)
+                                                                          is_training=self.config.is_training,
+                                                                          is_2d=self.config.is_2d)
         if self.config.use_speaker_aware:
             self.output_landmarks = tf.tile(tf.expand_dims(self.static_landmark, axis=1), multiples=[1, tf.shape(self.content_embedding)[1], 1]) + \
                 self.delta_q_t + self.delta_p_t
@@ -246,12 +248,24 @@ class SpeechToLandmark(object):
 
     def restore_or_initialize_network(self, speech_content_checkpoint=None, speaker_aware_checkpoint=None, discriminator_checkpoint=None):
         self.sess.run(tf.global_variables_initializer())
-        if self.config.is_loadmodel:
+        if not self.config.use_speaker_aware:
+            if self.config.is_loadmodel:
+                if speech_content_checkpoint is not None:
+                    self.speech_content_saver.restore(sess=self.sess, save_path=os.path.join(self.config.speech_content_model_dir, speech_content_checkpoint))
+                else:
+                    self.speech_content_saver.restore(sess=self.sess, save_path=tf.train.latest_checkpoint(checkpoint_dir=self.config.speech_content_model_dir))
+                print("Successfully load speech content animation model at {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+            else:
+                print("Successfully initialize speech content animation model model at {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+        else:
+            assert self.config.speech_content_model_dir is not None
             if speech_content_checkpoint is not None:
-                self.speech_content_saver.restore(sess=self.sess, save_path=os.path.join(self.config.speech_content_model_dir, speech_content_checkpoint))
+                self.speech_content_saver.restore(sess=self.sess,
+                                                  save_path=os.path.join(self.config.speech_content_model_dir, speech_content_checkpoint))
             else:
                 self.speech_content_saver.restore(sess=self.sess, save_path=tf.train.latest_checkpoint(checkpoint_dir=self.config.speech_content_model_dir))
-            if self.config.use_speaker_aware:
+            print("Successfully load speech content animation model at {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+            if self.config.is_loadmodel:
                 if speaker_aware_checkpoint is not None:
                     self.speaker_aware_saver.restore(sess=self.sess, save_path=os.path.join(self.config.speaker_aware_checkpoint, speaker_aware_checkpoint))
                 else:
@@ -260,9 +274,9 @@ class SpeechToLandmark(object):
                     self.discriminator_saver.restore(sess=self.sess, save_path=os.path.join(self.config.discriminator_model_dir, discriminator_checkpoint))
                 else:
                     self.discriminator_saver.restore(sess=self.sess, save_path=tf.train.latest_checkpoint(checkpoint_dir=self.config.discriminator_model_dir))
-            print("Successfully load model at {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
-        else:
-            print("Successfully initialize model at {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+                print("Successfully load speaker aware animation and discriminator model at {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+            else:
+                print("Successfully initialize speaker aware animation and discriminator model at {}".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
 
     def get_global_step(self):
         return tf.train.global_step(sess=self.sess, global_step_tensor=self.global_step)

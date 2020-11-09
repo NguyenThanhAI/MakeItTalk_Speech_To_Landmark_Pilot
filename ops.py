@@ -240,7 +240,7 @@ def discriminator(landmarks: tf.Tensor, hidden_states: tf.Tensor, speaker_embedd
 def speech_content_animation(content_embedding: tf.Tensor, input_landmarks: tf.Tensor, length: tf.Tensor,
                              batch_size=16,
                              hidden_size=256, num_lstms=3, tau=18, dropout_rate=None,
-                             scope="speech_content_animation", is_training=True):
+                             scope="speech_content_animation", is_training=True, is_2d=True):
     with tf.variable_scope(scope, "speech_content_animation", [content_embedding]) as sc:
         end_points_collection = sc.name + "_end_points"
 
@@ -259,17 +259,21 @@ def speech_content_animation(content_embedding: tf.Tensor, input_landmarks: tf.T
             print("outputs: {}".format(outputs))
             outputs = outputs[:, tau:, :]
 
-            outputs = tf.reshape(outputs, shape=[-1, hidden_size])
+            #outputs = tf.reshape(outputs, shape=[-1, hidden_size])
 
             input_landmarks = tf.tile(tf.expand_dims(input_landmarks, axis=1), multiples=[1, tf.reduce_max(length), 1])
 
-            input_landmarks = tf.reshape(input_landmarks, [-1, input_landmarks.get_shape()[-1]])
+            #input_landmarks = tf.reshape(input_landmarks, [-1, input_landmarks.get_shape()[-1]])
 
             input_mlp = tf.concat(values=[input_landmarks, outputs], axis=-1)
             print("input_mlp: {}".format(input_mlp))
-            outputs = mlp(inputs=input_mlp)
+            if is_2d:
+                num_outputs = 136
+            else:
+                num_outputs = 204
+            outputs = mlp(inputs=input_mlp, num_outputs=num_outputs)
 
-            outputs = tf.reshape(outputs, shape=[-1, tf.reduce_max(length), tf.shape(input_landmarks)[-1]])
+            #outputs = tf.reshape(outputs, shape=[-1, tf.reduce_max(length), tf.shape(input_landmarks)[-1]])
 
         return outputs, states
 
@@ -279,7 +283,7 @@ def speaker_aware_animation(content_embedding: tf.Tensor, speaker_embedding: tf.
                             lookup_table: tf.Tensor, batch_size=16, d_model=32,
                             hidden_size=256, num_lstms=3, tau_comma=256, dropout_rate=None,
                             num_layers=2, num_heads=8, d_ff=2048,
-                            scope="speaker_aware_animation", is_training=True):
+                            scope="speaker_aware_animation", is_training=True, is_2d=True):
     with tf.variable_scope(scope, "speaker_aware_animation", [content_embedding, speaker_embedding]) as sc:
         end_points_collection = sc.name + "_end_points"
 
@@ -328,8 +332,11 @@ def speaker_aware_animation(content_embedding: tf.Tensor, speaker_embedding: tf.
             #input_landmarks = tf.reshape(input_landmarks, [-1, input_landmarks.get_shape()[-1]])
 
             input_mlp = tf.concat(values=[input_landmarks, output_attention], axis=-1)
-
-            outputs = mlp(inputs=input_mlp)
+            if is_2d:
+                num_outputs = 136
+            else:
+                num_outputs = 204
+            outputs = mlp(inputs=input_mlp, num_outputs=num_outputs)
 
             #outputs = tf.reshape(outputs, shape=[-1, tf.reduce_max(length), input_landmarks.get_shape()[-1]])
 

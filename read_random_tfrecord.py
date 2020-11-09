@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import tensorflow as tf
 
@@ -29,8 +31,22 @@ def _parse_single_sequence_example(data_record):
     return length, static_landmark, speaker_embedding, content_embedding, landmark_label
 
 
+def enumerate_tfrecord(dir):
+    tfrecord_list = []
+    for dirs, _, files in os.walk(dir):
+        for file in files:
+            if file.endswith(".tfrecord"):
+                tfrecord_list.append(os.path.join(dirs, file))
+
+    return tfrecord_list
+
+
 def get_batch(tfrecord_path, batch_size, num_epochs=100):
-    dataset = tf.data.TFRecordDataset(tfrecord_path)
+    if os.path.isdir(tfrecord_path):
+        tfrecord_list = enumerate_tfrecord(tfrecord_path)
+        dataset = tf.data.TFRecordDataset(tfrecord_list)
+    else:
+        dataset = tf.data.TFRecordDataset(tfrecord_path)
     dataset = dataset.map(_parse_single_sequence_example)
     dataset = dataset.shuffle(2000)
     epoch = tf.data.Dataset.range(num_epochs)
@@ -51,7 +67,7 @@ hidden_size = 256
 
 dataset = tf.data.TFRecordDataset(["sequence_example.tfrecord"])
 dataset = dataset.map(_parse_single_sequence_example)
-dataset = dataset.padded_batch(batch_size=batch_size, padded_shapes=([], [204], [256], [None, 64], [None, 204]))
+dataset = dataset.padded_batch(batch_size=batch_size, padded_shapes=([], [136], [256], [None, 64], [None, 136]))
 #dataset = dataset.batch(1)
 dataset = dataset.shuffle(100)
 dataset = dataset.repeat(1)
